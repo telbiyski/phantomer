@@ -447,6 +447,10 @@ For a more in depth description, see [the full callbacks list for phantomjs][].
 phantom bug with Auth settings - use for settings: {parameters:{}, auth:{'Authorization': btoa('user:pass')}}
 plainText method
 
+## New on 1.0.3
+phantomPath -> phantomer.create({parameters:{'ignore-ssl-errors':'yes'}, phantomPath: require('phantomjs').path})
+-reference: node-phantom-async
+
 ## License (MIT)
 
 Copyright (c) Petar Telbiyski <telbiyski@gmail.com>

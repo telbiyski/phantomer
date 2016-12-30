@@ -82,7 +82,11 @@ var Phantomer = function(options) {
 
 	function prepare() {
 		return new Promise(function(resolve, reject) {
-			phantom.create({parameters: options.parameters}).then(function(instance) {
+			var opts = {parameters: options.parameters};
+			if (options.phantomPath) {
+				opts.phantomPath = options.phantomPath;
+			}
+			phantom.create(opts).then(function(instance) {
 				browser = instance;
 				return pager().then(resolve);
 			}, function(err) {
