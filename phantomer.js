@@ -50,6 +50,9 @@ var Phantomer = function(options) {
                         } else {
                             settings.userAgent = options.userAgent || 'Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.87 Safari/537.36';
                         }
+						if (options.auth) {
+							page.set('customHeaders', options.auth);
+						}
 						page.set('settings', settings)
 						.then(function() {
 							tab = page;
@@ -205,6 +208,10 @@ var Phantomer = function(options) {
 
 	self.zoom = function(zoomFactor) {
 		return tab.set('zoomFactor', zoomFactor);
+	};
+
+	self.plainText = function() {
+		return tab.get('plainText');
 	};
 
 	self.scrollTo = function(top, left) {

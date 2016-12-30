@@ -443,6 +443,9 @@ For a more in depth description, see [the full callbacks list for phantomjs][].
     console.log(msg);
   })
 ```
+## New on 1.0.2
+phantom bug with Auth settings - use for settings: {parameters:{}, auth:{'Authorization': btoa('user:pass')}}
+plainText method
 
 ## License (MIT)
 
