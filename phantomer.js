@@ -1,15 +1,15 @@
 /*
- Phantomer v1.0.0
+ Phantomer v1.0.2
  (c) 2016 Petar Telbiyski. http://telbiyski.com
  License: MIT
 */
 
-var phantom = require('node-phantom-async'),
-	defaults = require('defaults'),
-    Promise = require('bluebird');
+const phantom = require('node-phantom-async');
+const defaults = require('defaults');
+const Promise = require('bluebird');
 
-var Phantomer = function(options) {
-    var self = this,
+module.exports = function(options) {
+	let self = this,
 		browser = null,
 		tab = null;
 
@@ -18,14 +18,14 @@ var Phantomer = function(options) {
 	options.interval = options.interval || 50;
 
 	function addCookies(cookies) {
-		return new Promise(function(resolve, reject) {
-			var totalCookies = cookies.length,
+		return new Promise((resolve, reject) => {
+			let totalCookies = cookies.length,
 				cookiesAdded = 0;
 			if (totalCookies) {
-				for (var i = 0, len = totalCookies; i < len; i++) {
-					(function(cookie) {
+				for (let i = 0; i < totalCookies; i++) {
+					(cookie => {
 						return browser.addCookie(cookie)
-						.then(function() {
+						.then(() => {
 							if (++cookiesAdded == totalCookies) {
 								resolve();
 							}
@@ -39,64 +39,64 @@ var Phantomer = function(options) {
 	}
 
 	function pager() {
-		return new Promise(function(resolve, reject) {
+		return new Promise((resolve, reject) => {
 			return browser.createPage()
-			.then(function (page) {
-				return new Promise(function(resolve, reject){
-					return page.get('settings')
-					.then(function(settings) {
-                        if (options.settings) {
-                            settings = options.settings;
-                        } else {
-                            settings.userAgent = options.userAgent || 'Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.87 Safari/537.36';
-                        }
-						if (options.auth) {
-							page.set('customHeaders', options.auth);
-						}
-						page.set('settings', settings)
-						.then(function() {
-							tab = page;
-							tab.onTimeout = function() {
-								console.log("Phantom Page Timeout");
-							};
-							tab.onLoadFinished = function() {
-								self.waitingForNextPage = false;
-								if (tab.onLoadFinished2) tab.onLoadFinished2();
-							}.bind(self);
-							if (self.cokies) {
-								return addCookies(self.cookies)
-								.then(function(){
-									resolve(page);
-								}, reject)
-							} else {
+			.then(page => {
+				return page.get('settings')
+				.then(settings => {
+                    if (options.settings) {
+                        settings = options.settings;
+                    } else {
+                        settings.userAgent = options.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36';
+                    }
+					if (options.auth) {
+						page.set('customHeaders', options.auth);
+					}
+					page.set('settings', settings)
+					.then(() => {
+						tab = page;
+						tab.onTimeout = () => {
+							console.log('Phantom Page Timeout');
+						};
+						tab.onLoadFinished = () => {
+							self.waitingForNextPage = false;
+							if (tab.onLoadFinished2) tab.onLoadFinished2();
+						};
+						if (self.cokies) {
+							return addCookies(self.cookies)
+							.then(() => {
 								resolve(page);
-							}
-						}, reject);
+							}, reject)
+						} else {
+							resolve(page);
+						}
 					}, reject);
-				});
-			}, function(e){throw new Error(e);})
-			.then(resolve)
+				}, reject);
+			}, e => {
+				reject(e);
+			})
 			.catch(reject);
 		});
 	}
 
 	function prepare() {
-		return new Promise(function(resolve, reject) {
-			var opts = {parameters: options.parameters};
+		return new Promise((resolve, reject) => {
+			let opts = {parameters: options.parameters};
 			if (options.phantomPath) {
 				opts.phantomPath = options.phantomPath;
 			}
-			phantom.create(opts).then(function(instance) {
+			return phantom.create(opts)
+			.then(instance => {
 				browser = instance;
-				return pager().then(resolve);
-			}, function(err) {
+				return pager().then(resolve, reject);
+			}, err => {
 				reject(err);
 			});
-		}).bind(self);
+		});
 	}
 
 	function val(selector, value) {
-		if (typeof value === "undefined") {
+		if (typeof value === 'undefined') {
 			return tab.evaluate(function(selector) {
 				return document.querySelector(selector).value;
 			}, selector);
@@ -121,77 +121,77 @@ var Phantomer = function(options) {
 		}
 	}
 
-	self.open = function(url) {
+	self.open = url => {
 		return prepare()
-		.then(function(){
+		.then(() => {
 			return tab.open(url);
 		});
 	};
 
-	self.goTo = function(url) {
+	self.goTo = url => {
 		return tab.open(url);
 	};
 
-	self.newPage = function(url) {
+	self.newPage = url => {
 		return tab.get('cookies')
-		.then(function(c){
+		.then(c => {
 			self.cokies = c;
-			return tab.close()
-			.then(function(){
-				return pager()
-				.then(function(){
-					return tab.open(url);
-				});
-			});
+			return tab.close();
 		})
+		.then(() => {
+			return pager();
+		})
+		.then(() => {
+			return tab.open(url);
+		});
 	};
 
-	self.title = function() {
+	self.title = () => {
 		return tab.get('title');
 	};
 
-	self.injectJQ = function() {
-		return new Promise(function(resolve, reject) {
-			return tab.evaluate(function() {
-				delete window.jQuery;
-			})
-			.then(function(){
-				return tab.injectJs('./jquery-2.2.3.min.js');
-			}, reject)
-			.then(function(){
-				return self.wait(1000).then(resolve, reject);
-			}, reject);
+	self.injectJQ = () => {
+		return tab.evaluate(function() {
+			delete window.jQuery;
+		})
+		.then(() => {
+			return tab.injectJs('./jquery-3.2.1.min.js');
+		})
+		.then(() => {
+			return self.wait(1000);
 		});
 	};
 
-	self.close = function() {
+	self.close = () => {
 		return browser.exit();
 	};
 
-	self.headers = function(headers) {
+	self.headers = headers => {
 		return tab.set('customHeaders', headers);
 	};
 
-	self.back = function() {
+	self.back = () => {
 		return tab.goBack();
 	};
 
-	self.forward = function() {
+	self.forward = () => {
 		return tab.goForward();
 	};
 
-	self.authentication = function(user, password) {
-		return new Promise(function(resolve, reject) {
-			return tab.get('settings')
-			.then(function(settings) {
-				settings.userName = user;
-				settings.password = password;
-				return tab.set('settings', settings);
-			}, reject);
+	self.authentication = (user, password) => {
+		return tab.get('settings')
+		.then(settings => {
+			settings.userName = user;
+			settings.password = password;
+			return tab.set('settings', settings);
 		});
 	};
 
-	self.viewport = function(width, height) {
+	self.viewport = (width, height) => {
+		let viewport = {
+			width: width,
+			height: height
+		};
 		if (!width) {
 			return tab.evaluate(function() {
 				return {
@@ -200,52 +200,44 @@ var Phantomer = function(options) {
 				};
 			});
 		} else {
-			return new Promise(function(resolve, reject) {
-				var viewport = {
-					width: width,
-					height: height
-				};
-				return tab.set('viewportSize', viewport);
-			})
+			return tab.set('viewportSize', viewport);
 		}
 	};
 
-	self.zoom = function(zoomFactor) {
+	self.zoom = zoomFactor => {
 		return tab.set('zoomFactor', zoomFactor);
 	};
 
-	self.plainText = function() {
+	self.plainText = () => {
 		return tab.get('plainText');
 	};
 
-	self.scrollTo = function(top, left) {
-		var position = {
+	self.scrollTo = (top, left) => {
+		let position = {
 			top: top,
 			left: left
 		};
 		return tab.set('scrollPosition', position);
 	};
 
-	self.post = function(url, postData) {
+	self.post = (url, postData) => {
 		return tab.open(url, 'POST', postData);
 	};
 
-	self.reload = function() {
+	self.reload = () => {
 		return tab.evaluate(function() {
 			document.location.reload(true);
 		});
 	};
 
-	self.cookies = function(arg) {
+	self.cookies = arg => {
 		if (arg) {
 			if (arg instanceof Array) {
-				return new Promise(function(resolve, reject) {
-					return browser.clearCookies()
-					.then(function() {
-						return addCookies(arg);
-					}, reject);
+				return browser.clearCookies()
+				.then(() => {
+					return addCookies(arg);
 				});
-			} else if (typeof arg === "object") {
+			} else if (typeof arg === 'object') {
 				return browser.addCookie(arg);
 			}
 		} else {
@@ -253,142 +245,124 @@ var Phantomer = function(options) {
 		}
 	};
 
-	self.screenshot = function(path) {
+	self.screenshot = path => {
 		return tab.render(path);
 	};
 
-	self.click = function(selector) {
+	self.click = selector => {
 		return tab.evaluate(function(selector) {
 			var element = document.querySelector(selector);
 			var event = document.createEvent('MouseEvent');
 			event.initEvent('click', true, false);
-			element.dispatchEvent(event);
+			if (element) element.dispatchEvent(event);
 		}, selector);
 	};
 
-	self.boundingRectangle = function(selector) {
+	self.boundingRectangle = selector => {
 		return tab.evaluate(function(selector) {
 			var element = document.querySelector(selector);
-			return element.getBoundingClientRect();
+			return element ? element.getBoundingClientRect() : undefined;
 		}, selector);
 	};
 
-	self.crop = function(area, path) {
+	self.crop = (area, path) => {
 		function doCrop(rect) {
-			return new Promise(function(resolve, reject) {
-				return tab.get('clipRect')
-				.then(function(prevClipRect) {
-					return tab.set('clipRect', rect)
-					.then(function() {
-						return tab.render(path)
-						.then(function() {
-							return tab.set('clipRect', prevClipRect).then(resolve,reject);
-						}, reject);
-					}, reject);
-				}, reject);
-			});
+			return tab.get('clipRect')
+			.then(prevClipRect => {
+				return tab.set('clipRect', rect);
+			}, reject)
+			.then(() => {
+				return tab.render(path);
+			}, reject)
+			.then(() => {
+				return tab.set('clipRect', prevClipRect);
+			}, reject);
 		}
-		if (typeof area === "string") {
+		if (typeof area === 'string') {
 			return self.boundingRectangle(area).then(doCrop);
 		} else {
 			return doCrop(area);
 		}
 	};
 
-	self.clip = function(rect) {
+	self.clip = rect => {
 		return tab.set('clipRect', rect);
 	};
 
-	self.screenshotBase64 = function(type) {
-		return new Promise(function(resolve, reject) {
-			if (['PNG', 'GIF', 'JPEG'].indexOf(type) == -1) {
-				reject("screenshotBase64 type must be PNG, GIF, or JPEG.");
+	self.screenshotBase64 = type => {
+		return new Promise((resolve, reject) => {
+			if (['PNG', 'GIF', 'JPEG'].indexOf(type) === -1) {
+				reject('screenshotBase64 type must be PNG, GIF, or JPEG.');
 			} else {
 				return tab.renderBase64(type);
 			}
 		});
 	};
 
-	self.pdf = function(path, paperSize) {
-		if (!paperSize) {
-			paperSize = {
-				format: 'A4',
-				orientation: 'portrait',
-				margin: '0.5in'
-			};
-		}
-		return new Promise(function(resolve, reject) {
-			return tab.set('paperSize', paperSize)
-			.then(function() {
-				return tab.render(path, {format:'pdf', quality:'100'});
-			}, reject);
+	self.pdf = (path, paperSize = {format: 'A4', orientation: 'portrait', margin: '0.5in'}) => {
+		return tab.set('paperSize', paperSize)
+		.then(() => {
+			return tab.render(path, {format:'pdf', quality:'100'});
 		});
 	};
 
-	self.injectJs = function(file) {
+	self.injectJs = file => {
 		return tab.injectJs(file);
 	};
 
-	self.includeJs = function(url) {
+	self.includeJs = url => {
 		return tab.includeJs(url);
 	};
 
-	self.value = function(selector, value) {
+	self.value = (selector, value) => {
 		return val(selector, value);
 	};
 
-	self.clear = function(selector) {
-		return val(selector, "");
+	self.clear = selector => {
+		return val(selector, '');
 	};
 
-	self.keyboardEvent = function(type, key, modifier) {
-		type = (typeof type === "undefined") ? 'keypress' : type;
-		key = (typeof key === "undefined") ? null : key;
-		modifier = (typeof modifier === "undefined") ? 0 : modifier;
+	self.keyboardEvent = (type = 'keypress', key = null, modifier = 0) => {
 		return tab.sendEvent(type, key, null, null, modifier);
 	};
 
-	self.mouseEvent = function(type, x, y, button) {
-		type = (typeof type === "undefined") ? "click" : type;
-		x = (typeof x === "undefined") ? null : x;
-		y = (typeof y === "undefined") ? null : y;
-		button = (typeof button === "undefined") ? "left" : button;
+	self.mouseEvent = (type = 'click', x = null, y = null, button = 'left') => {
 		return tab.sendEvent(type, x, y, button);
 	};
 
-	self.type = function(selector, text, options) {
-		var DEFAULTS = {
-			reset: false,
-			eventType: 'keypress',
-			keepFocus: false
-		};
+	self.type = (selector, text, options) => {
 		function computeModifier(modifierString) {
-			var modifiers = {
-				"ctrl": 0x04000000,
-				"shift": 0x02000000,
-				"alt": 0x08000000,
-				"meta": 0x10000000,
-				"keypad": 0x20000000
+			let modifiers = {
+				ctrl: 0x04000000,
+				shift: 0x02000000,
+				alt: 0x08000000,
+				meta: 0x10000000,
+				keypad: 0x20000000
 			};
-			var modifier = 0,
-				checkKey = function(key) {
+			let modifier = 0,
+				checkKey = key => {
 					if (key in modifiers) return;
 				};
 			if (!modifierString) return modifier;
-			var keys = modifierString.split('+');
+			let keys = modifierString.split('+');
 			keys.forEach(checkKey);
-			return keys.reduce(function(acc, key) {
+			return keys.reduce((acc, key) => {
 				return acc | modifiers[key];
 			}, modifier);
 		}
-		var modifiers = computeModifier(options && options.modifiers);
-		var opts = defaults(options || {}, DEFAULTS);
-		return new Promise(function(resolve, reject) {
+		let DEFAULTS = {
+			reset: false,
+			eventType: 'keypress',
+			keepFocus: false
+		},
+			modifiers = computeModifier(options && options.modifiers),
+			opts = defaults(options || {}, DEFAULTS);
+		return new Promise((resolve, reject) => {
 			return tab.evaluate(function(selector) {
-				if(document.querySelector(selector)) document.querySelector(selector).focus();
+				if (document.querySelector(selector)) document.querySelector(selector).focus();
 			}, selector)
-			.then(function(selector) {
-				for (var i = 0, len = text.length; i < len; i++) {
+			.then(() => {
+				for (let i = 0, len = text.length; i < len; i++) {
 					tab.sendEvent(opts.eventType, text[i], null, null, modifiers);
 				}
 				resolve();
@@ -396,46 +370,51 @@ var Phantomer = function(options) {
 		});
 	};
 
-	self.upload = function(selector, path) {
+	self.upload = (selector, path) => {
 		return tab.uploadFile(selector, path);
 	};
 
-	self.setProxy = function(ip, port, type, user, pass) {
+	self.setProxy = (ip, port, type, user, pass) => {
 		return browser.setProxy(ip, port, type, user, pass);
 	};
 
-	self.do = function(fn) {
-		return new Promise(function(resolve, reject){
+	self.do = fn => {
+		return new Promise((resolve, reject) =>{
 			fn(resolve);
 		});
 	};
 
 	self.evaluate = function() {
-		var args = Array.prototype.slice.call(arguments);
+		let args = Array.prototype.slice.call(arguments);
 		return tab.evaluate.apply(tab, args);
 	};
 
-	self.url = function() {
+	self.url = () => {
 		return tab.evaluate(function() {
 			return document.location.href;
 		});
 	};
 
-	self.count = function(selector) {
+	self.count = selector => {
 		return tab.evaluate(function(selector) {
 			return document.querySelectorAll(selector).length;
 		}, selector);
 	};
 
-	self.exists = function(selector) {
-		return new Promise(function(resolve, reject) {
-			return self.count(selector).then(function(count) {
-				resolve(count > 0);
+	self.exists = selector => {
+		return new Promise((resolve, reject) => {
+			return self.count(selector)
+			.then(count => {
+				if (count) {
+					resolve(count > 0);
+				} else {
+					reject();
+				}
 			}, reject);
 		});
 	};
 
-	self.html = function(selector) {
+	self.html = selector => {
 		return tab.evaluate(function(selector) {
 			if (selector) {
 				return document.querySelector(selector).innerHTML;
@@ -445,85 +424,85 @@ var Phantomer = function(options) {
 		}, selector);
 	};
 
-	self.text = function(selector) {
+	self.text = selector => {
 		return tab.evaluate(function(selector) {
 			if (selector) {
 				return document.querySelector(selector).textContent;
 			} else {
-				return document.querySelector("body").textContent;
+				return document.querySelector('body').textContent;
 			}
 		}, selector);
 	};
 
-	self.attribute = function(selector, attr) {
+	self.attribute = (selector, attr) => {
 		return tab.evaluate(function(selector, attr) {
 			return document.querySelector(selector).getAttribute(attr);
 		}, selector, attr);
 	};
 
-	self.cssProperty = function(selector, prop) {
+	self.cssProperty = (selector, prop) => {
 		return tab.evaluate(function(selector, prop) {
 			return getComputedStyle(document.querySelector(selector))[prop];
 		}, selector, prop);
 	};
 
-	self.width = function(selector) {
+	self.width = selector => {
 		return tab.evaluate(function(selector) {
 			return document.querySelector(selector).offsetWidth;
 		}, selector);
 	};
 
-	self.height = function(selector) {
+	self.height = selector => {
 		return tab.evaluate(function(selector) {
 			return document.querySelector(selector).offsetHeight;
 		}, selector);
 	};
 
-	self.visible = function(selector) {
+	self.visible = selector => {
 		return tab.evaluate(function(selector) {
 			return (document.querySelector(selector) ? elem.offsetWidth > 0 && elem.offsetHeight > 0 : false);
 		}, selector);
 	};
 
-	self.on = function(eventType, callback) {
-		if (eventType == "timeout") {
+	self.on = (eventType, callback) => {
+		if (eventType === 'timeout') {
 			tab.onTimeout = callback;
-		} else if (eventType == "navigationRequested") {
+		} else if (eventType === 'navigationRequested') {
 			tab.onNavigationRequested = function(result) {
 				callback(result[0]);
 			};
-		} else if (eventType == "urlChanged") {
+		} else if (eventType === 'urlChanged') {
 			tab.onUrlChanged = function(targetUrl) {
 				callback(targetUrl);
 			};
-		} else if (eventType == "resourceReceived") {
+		} else if (eventType === 'resourceReceived') {
 			tab.onResourceReceived = function(response) {
 				callback(response);
 			};
-		} else if (eventType == "loadFinished") {
+		} else if (eventType === 'loadFinished') {
 			tab.onLoadFinished2 = callback;
-		} else if (eventType == 'error') {
+		} else if (eventType === 'error') {
 			tab.onError = callback;
 		} else {
-			var pageEvent = "on" + eventType.charAt(0).toUpperCase() + eventType.slice(1);
+			let pageEvent = 'on' + eventType.charAt(0).toUpperCase() + eventType.slice(1);
 			tab[pageEvent] = callback;
 		}
 	};
 
-	self.wait = function(time) {
+	self.wait = time => {
 		return Promise.delay(time);
 	};
 
-	self.waitForNextPage = function() {
-		return new Promise(function(resolve, reject) {
+	self.waitForNextPage = () => {
+		return new Promise((resolve, reject) => {
 			self.waitingForNextPage = true;
-			var start = Date.now();
-			var waiting = setInterval(function() {
+			let start = Date.now(),
+				waiting = setInterval(() => {
 				if (self.waitingForNextPage === false) {
 					clearInterval(waiting);
 					resolve();
 				} else {
-					var diff = Date.now() - start;
+					let diff = Date.now() - start;
 					if (diff > options.timeout) {
 						clearInterval(waiting);
 						reject('Timeout occurred before url changed.');
@@ -534,37 +513,35 @@ var Phantomer = function(options) {
 		.catch(timeoutCB);
 	};
 
-	self.waitForSelector = function(selector) {
-		eval("var elementPresent = function() {" +
-			"  var element = document.querySelector('" + selector + "');" +
-			"  return (element ? true : false);" +
-			"};");
+	self.waitForSelector = selector => {
+		eval(`var elementPresent = function() {
+				var element = document.querySelector('${selector}');
+				return (element ? true : false);
+			};`);
 		return self.waitFor(elementPresent, true);
 	};
 
-	self.waitFor = function(fn, value) {
-		return new Promise(function(resolve, reject) {
-			var start = Date.now();
-			var checkInterval = setInterval(function() {
-				var diff = Date.now() - start;
-				if (diff > options.timeout) {
-					clearInterval(checkInterval);
-					reject('Timeout occurred before url changed.');
-				} else {
-					return tab.evaluate(fn)
-					.then(function(res) {
-						if (res === value) {
-							clearInterval(checkInterval);
-							resolve();
-						}
-					})
-				}
-			}, options.interval);
+	self.waitFor = (fn, value) => {
+		return new Promise((resolve, reject) => {
+			let start = Date.now(),
+				checkInterval = setInterval(() => {
+					let diff = Date.now() - start;
+					if (diff > options.timeout) {
+						clearInterval(checkInterval);
+						reject('Timeout occurred before url changed.');
+					} else {
+						return tab.evaluate(fn)
+						.then(res => {
+							if (res === value) {
+								clearInterval(checkInterval);
+								resolve();
+							}
+						})
+					}
+				}, options.interval);
 		})
 		.catch(timeoutCB);
 	};
 
     return self;
 };
-
-module.exports = Phantomer;

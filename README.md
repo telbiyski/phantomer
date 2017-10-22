@@ -36,7 +36,7 @@ Not full tested. Use at your own risk.
 
 ## Installation
 
-`npm install phantomer --save`
+`npm i phantomer`
 
 Note: Make sure PhantomJS is available in your path.
 
@@ -450,6 +450,12 @@ plainText method
 ## New on 1.0.4
 phantomPath -> phantomer.create({parameters:{'ignore-ssl-errors':'yes'}, phantomPath: require('phantomjs').path})
 -reference: node-phantom-async
+
+## New on 1.0.5
+jquery 3.2.1
+ES2015 version.
+code improvements
+major bug fixed -> exist function
 
 ## License (MIT)
 
