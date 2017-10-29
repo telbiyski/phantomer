@@ -1,10 +1,10 @@
 /*
- Phantomer v1.0.2
- (c) 2016 Petar Telbiyski. http://telbiyski.com
+ Phantomer v1.0.6
+ (c) 2016-2017 Petar Telbiyski. https://github.com/telbiyski
  License: MIT
 */
 
-const phantom = require('node-phantom-async');
+const phantom = require('./lib/node-phantom');
 const defaults = require('defaults');
 const Promise = require('bluebird');
 
@@ -14,8 +14,10 @@ module.exports = function(options) {
 		tab = null;
 
 	options = options || {};
-	options.timeout = options.timeout || 15000;
-	options.interval = options.interval || 50;
+	options.timeout = options.timeout || 1500;
+	options.interval = options.interval || 150;
+	options.max_tries = options.max_tries || 10;
+	options.retry = {max_tries: options.max_tries, timeout: options.timeout, interval: options.interval};
 
 	function addCookies(cookies) {
 		return new Promise((resolve, reject) => {
@@ -52,6 +54,7 @@ module.exports = function(options) {
 					if (options.auth) {
 						page.set('customHeaders', options.auth);
 					}
+					page.set('viewportSize', {width: options.browserWidth || 1920, height: options.browserHeight || 1050});
 					page.set('settings', settings)
 					.then(() => {
 						tab = page;
@@ -87,8 +90,12 @@ module.exports = function(options) {
 			}
 			return phantom.create(opts)
 			.then(instance => {
-				browser = instance;
-				return pager().then(resolve, reject);
+				if (instance) {
+					browser = instance;
+					return pager().then(resolve, reject);
+				} else {
+					reject('Phantom spawn error');
+				}
 			}, err => {
 				reject(err);
 			});
@@ -125,6 +132,8 @@ module.exports = function(options) {
 		return prepare()
 		.then(() => {
 			return tab.open(url);
+		}, e => {
+			return Promise.reject();
 		});
 	};
 
@@ -150,20 +159,35 @@ module.exports = function(options) {
 		return tab.get('title');
 	};
 
-	self.injectJQ = () => {
-		return tab.evaluate(function() {
-			delete window.jQuery;
-		})
+	self.injectJQ = (jqueryURL) => {
+		jqueryURL = jqueryURL || '//code.jquery.com/jquery-3.2.1.min.js';
+		return tab.evaluate(function(jqueryURL) {
+			window.jQuery = undefined;
+			window.$ = undefined;
+			(function() {
+				function l(u, i) {
+			        var d = document;
+			        if (!d.getElementById(i)) {
+			            var s = d.createElement('script');
+			            s.src = u;
+			            s.id = i;
+			            d.body.appendChild(s);
+			        }
+			    }
+			    l(jqueryURL, 'jquery')
+			})();
+		}, jqueryURL)
 		.then(() => {
-			return tab.injectJs('./jquery-3.2.1.min.js');
-		})
-		.then(() => {
-			return self.wait(1000);
+			return self.wait(300);
 		});
 	};
 
 	self.close = () => {
-		return browser.exit();
+		if (browser) {
+			return browser.exit();
+		} else {
+			return Promise.reject();
+		}
 	};
 
 	self.headers = headers => {
@@ -249,13 +273,17 @@ module.exports = function(options) {
 		return tab.render(path);
 	};
 
-	self.click = selector => {
+	self.clickSelector = selector => {
 		return tab.evaluate(function(selector) {
 			var element = document.querySelector(selector);
 			var event = document.createEvent('MouseEvent');
 			event.initEvent('click', true, false);
 			if (element) element.dispatchEvent(event);
 		}, selector);
+	};
+
+	self.click = selector => {
+		return tab.clickSelector(selector, 'left', options.retry);
 	};
 
 	self.boundingRectangle = selector => {
@@ -362,8 +390,16 @@ module.exports = function(options) {
 				if (document.querySelector(selector)) document.querySelector(selector).focus();
 			}, selector)
 			.then(() => {
+				let hitEnter = false;
+				if (text.indexOf('ENTER') > -1) {
+					hitEnter = true;
+					text = text.replace('ENTER', '');
+				}
 				for (let i = 0, len = text.length; i < len; i++) {
 					tab.sendEvent(opts.eventType, text[i], null, null, modifiers);
+				}
+				if (hitEnter) {
+					tab.sendEvent('keypress', 16777221);
 				}
 				resolve();
 			});
@@ -399,6 +435,12 @@ module.exports = function(options) {
 		return tab.evaluate(function(selector) {
 			return document.querySelectorAll(selector).length;
 		}, selector);
+	};
+
+	self.inDOM = property => {
+		return tab.evaluate(function(property) {
+			return window[property];
+		}, property);
 	};
 
 	self.exists = selector => {
@@ -514,33 +556,7 @@ module.exports = function(options) {
 	};
 
 	self.waitForSelector = selector => {
-		eval(`var elementPresent = function() {
-				var element = document.querySelector('${selector}');
-				return (element ? true : false);
-			};`);
-		return self.waitFor(elementPresent, true);
-	};
-
-	self.waitFor = (fn, value) => {
-		return new Promise((resolve, reject) => {
-			let start = Date.now(),
-				checkInterval = setInterval(() => {
-					let diff = Date.now() - start;
-					if (diff > options.timeout) {
-						clearInterval(checkInterval);
-						reject('Timeout occurred before url changed.');
-					} else {
-						return tab.evaluate(fn)
-						.then(res => {
-							if (res === value) {
-								clearInterval(checkInterval);
-								resolve();
-							}
-						})
-					}
-				}, options.interval);
-		})
-		.catch(timeoutCB);
+		return tab.checkSelector(selector, options.retry);
 	};
 
     return self;

@@ -8,19 +8,11 @@ Horseman alternative made with Promises.
 Inspired by Horseman.
 
 ### Why?
-I had problems with horseman for my projects, because horseman use `node-phantom-simple` instead `node-phantom-async`.
-
-And also i don't like the code of the new version (3). (Based on previous version.)
-
-But still good work.
-
-
 Phantomer has:
-
   * Promise chainable,
   * an easy-to-use control flow (see the examples),
-  * no tabs, no frames (like horseman),
-  * using node-phantom-async,
+  * no tabs, no frames,
+  * based on node-phantom-async,
   * using bluebird.
   * easy for maintain (1 file, ~500 lines code)
 
@@ -28,17 +20,28 @@ Phantomer has:
 
 See exaples folder.
 
-Run: `node example.js`.
+Run: `node examples/follow`.
+Run: `node examples/links`.
+Run: `node examples/pizza`.
+
+## Tips
+On the first page load use .open(url), then use .goTo(url) for further navigation.
+Use .waitForSelector(selector) with some footer element which will load at the end of the HTML, because we don't know when the page is actually loaded.
+new Phanomer will make new browser process. You can use only one Phantom for less RAM and CPU.
+Running few Phantoms at the same time is not very good idea. 3-5 browsers is my maximum for good performance.
+Even if you have enough RAM and CPU power - the network usage will be too high with many browsers.
+Some websites use $ which is not Jquery. If you inject Jquery in this case you will broke the website.
+Very usefull to avoid issues is to get the whole HTML and parse with cheerio or something similar.
 
 ## Warning
 
-Not full tested. Use at your own risk.
+Use at your own risk.
 
 ## Installation
 
 `npm i phantomer`
 
-Note: Make sure PhantomJS is available in your path.
+Note: Make sure PhantomJS is available in your PATH.
 
 ## API
 
@@ -53,9 +56,9 @@ The available options are:
   * `parameters` - phantomjs parameters
   * `settings` - phantomjs settings
   * `userAgent` - set user agent if no settings
-  * `timeout`: how long to wait for page loads or wait periods,
-    default `5000` ms.
-  * `interval`: how frequently to poll for page load state, default `50` ms.
+  * `timeout`: how long to wait for page loads or wait periods, default `1500` ms.
+  * `interval`: how frequently to poll for page load state, default `150` ms.
+  * `max_tries`: how much times to retry, default `10` times.
 
 ### Configuration
 
@@ -83,6 +86,11 @@ Closes the Phantomer instance by shutting down PhantomJS.
 #### .open(url)
 
 Load the page at `url`.
+
+#### .goTo(url)
+
+Navigate the page to `url`.
+* need open() at first time, then use goTo() not open()
 
 #### .post(url, postData)
 
@@ -313,6 +321,14 @@ Useful for extracting information from the page.
 #### .click(selector)
 
 Clicks the `selector` element once.
+* have to be visible
+* no need for waitForSelector
+
+#### .clickSelector(selector)
+
+Clicks the `selector` element once.
+* not need to be visible
+* run waitForSelector before click
 
 #### .clear(selector)
 
@@ -337,9 +353,16 @@ Inject a JavaScript file onto the page.
 
 Include an external JavaScript script on the page via URL.
 
-#### .injectJQ()
+#### .injectJQ(url)
 
-Inject jQuery onto the page.
+Inject jQuery into the page.
+url is optional - default is //code.jquery.com/jquery-3.2.1.min.js
+you can provide other URL
+
+#### .inWindow(property)
+
+Return window[property];
+* You can check for $ when injectJQ
 
 #### .mouseEvent(type, \[x, y, \[button\]\])
 
@@ -394,20 +417,6 @@ Wait until a page finishes loading, typically after a `.click()`.
 Wait until the element `selector` is present,
 e.g., `.waitForSelector('#pay-button')`
 
-#### .waitFor(fn, \[arg1, arg2,...\], value)
-
-Wait until the `fn` evaluated on the page returns the *specified* `value`.
-`fn` is invoked with args.
-
-```js
-// This will call the function in the browser repeatedly
-// until true (or whatever else you specified) is returned
-  .waitFor(function waitForSelectorCount(selector, count) {
-    return $(selector).length >= count
-  }, '.some-selector', 2, true)
-  // last argument (true here) is what return value to wait for
-```
-
 ### Events
 
 #### .on(event, callback)
@@ -456,6 +465,19 @@ jquery 3.2.1
 ES2015 version.
 code improvements
 major bug fixed -> exist function
+
+## New on 1.0.6
+node-phantom-async now is part of phantomer and renamed to node-phantom
+node-phantom now work with newest bluebird
+new check for window property
+fixed examples
+ES6 for node-phantom
+code improvements
+jquery is injected from CDN or optional URL
+set default viewport on 1920x1050
+when type you can write 'lorem ipsumENTER' - which will type only 'lorem ipsum' and will press Enter key
+new click function which detect if the element is visible
+old click function is renamed to clickSelector which work with dispatchEvent
 
 ## License (MIT)
 

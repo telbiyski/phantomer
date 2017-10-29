@@ -1,23 +1,18 @@
-var Phantomer = require('./phantomer');
+const Phantomer = require('../phantomer');
 
-var users = ['PhantomJS',
-	'ariyahidayat',
-	'detronizator',
-	'KDABQt',
-	'lfranchi',
-	'jonleighton',
-	'_jamesmgreene',
-	'Vitalliumm'];
+let users = ['PhantomJS', 'ariyahidayat', 'detronizator', 'KDABQt', 'lfranchi', 'jonleighton', '_jamesmgreene', 'Vitalliumm'],
+	count = 0;
 
-users.forEach(function(user) {
+users.forEach(user => {
 	var phantomer = new Phantomer({parameters:{'ignore-ssl-errors':'yes'}});
-	phantomer
-		.open('http://mobile.twitter.com/'+user)
-		.then(phantomer.text.bind(null,'.UserProfileHeader-stat--followers .UserProfileHeader-statCount'))
-		.then(function(text) {
-			console.log(user + ': ' + text);
-		})
-		.finally(function() {
-			phantomer.close();
-		});
+	phantomer.open('http://twitter.com/' + user)
+	.then(phantomer.text.bind(null,'.ProfileNav-item--followers .ProfileNav-value'))
+	.then(text => {
+		console.log(user + ' followers: ' + text);
+		count++;
+	})
+	.finally(() => {
+		phantomer.close();
+		if (count === users.length) process.exit();
+	});
 });
