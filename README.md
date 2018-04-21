@@ -1,6 +1,11 @@
 Phantomer
 =========
 
+> This package has been deprecated
+> Author message:
+>
+> Deprecated in favor of Nightmare. Phantomjs is one big shit.
+
 Run [PhantomJS](http://phantomjs.org/) from Node with Phantomer.
 
 Horseman alternative made with Promises.
